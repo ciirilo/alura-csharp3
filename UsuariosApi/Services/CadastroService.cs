@@ -5,9 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Web;
 using UsuariosApi.Data.Dto_s;
 using UsuariosApi.Data.Requests;
 using UsuariosApi.Models;
+using UsuariosApi.Services;
 
 namespace UsuariosApi
 {
@@ -15,11 +17,13 @@ namespace UsuariosApi
     {
         private IMapper _mapper;
         private UserManager<IdentityUser<int>> _userManager;
+        private EmailService _emailService;
 
-        public CadastroService(IMapper mapper, UserManager<IdentityUser<int>> userManager)
+        public CadastroService(IMapper mapper, UserManager<IdentityUser<int>> userManager, EmailService emailService)
         {
             _mapper = mapper;
             _userManager = userManager;
+            _emailService = emailService;
         }
 
         public Result CadastraUsuario(CreateUsuarioDto createDto)
@@ -29,11 +33,13 @@ namespace UsuariosApi
             Task<IdentityResult> resultadoIdentity = _userManager.CreateAsync(usuarioIdentity, createDto.Password);
             if (resultadoIdentity.Result.Succeeded)
             {
-                var code = _userManager.GenerateEmailConfirmationTokenAsync(usuarioIdentity).Result;
+                var code = _userManager
+                    .GenerateEmailConfirmationTokenAsync(usuarioIdentity).Result;
+                var encodedCode = HttpUtility.UrlEncode(code);
+                _emailService.EnviarEmail(new[] { usuarioIdentity.Email }, "Link de Ativação" , usuarioIdentity.Id, encodedCode);
                 return Result.Ok().WithSuccess(code);
             }
             return Result.Fail("Falha ao cadastrar usuário");
-
         }
 
         public Result AtivaContaUsuario(AtivaContaRequest request)
